@@ -1,0 +1,48 @@
+import { useState } from "react";
+import { useSignIn } from "@/hooks/useSignIn";
+import { SignInForm } from "@/components/signIn/SignInForm";
+import { useNavigate } from "react-router-dom";
+
+export default function SignInPage() {
+    const { signIn, isLoading, error } = useSignIn();
+    const [errors, setErrors] = useState(null);
+
+    const navigate = useNavigate();
+
+    const handleSubmit = async (e: any) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const username: string = formData.get('username') as string;
+
+        if (!username) {
+            setErrors({ username: 'Username is required' });
+            return;
+        }
+
+        if (username.length < 3) {
+            setErrors({ username: 'Username must be at least 3 characters long' });
+            return;
+        }
+
+        if (username === 'admin') {
+            setErrors({ username: 'Invalid username' });
+            return;
+        }
+
+        setErrors(null);
+
+        try {
+            await signIn(username);
+            navigate("/chats");
+        } catch (error: any) {
+            // ignore
+        }
+    };
+
+    return (
+        <div>
+            <SignInForm isSubmitting={isLoading} errors={errors} error={error} onSubmit={handleSubmit} />
+        </div>
+    );
+}

@@ -78,27 +78,35 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Find if the username already exists
-    const usernameExists = users.some((user) => user.username.toLowerCase() === username.toLowerCase());
+    let user = users.find((user) => user.username === username);
 
-    if (usernameExists) {
+    if (user && user.status === "ACTIVE") {
         return res.status(400).json({
             message: "Username already in use"
         });
     }
 
-    const userData = {
-        username: username,
-        createdAt: Date.now(),
-        socketId: null
-    };
-    users.push(userData);
+    if (!user) {
+        user = {
+            username: username,
+            status: "INACTIVE",
+            createdAt: Date.now(),
+            socketId: null
+        };
 
-    const { accessToken, refreshToken } = generateToken(userData);
+        users.push(user);
+    } else {
+        //TODO: Expire refreshToken in case user already exists but is INACTIVE,
+        // to prevent multiple refresh tokens for the same user
+    }
+
+    const { accessToken, refreshToken } = generateToken(user);
+
     refreshTokensDatabase.push(refreshToken);
     res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        //secure: true,
-        sameSite: 'strict',
+        secure: true,
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
@@ -108,9 +116,10 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/refresh', (req, res) => {
+    if (!req.cookies) {
+        return res.status(401).json({ message: "Required Cookies are missing" });
+    }
     const refreshToken = req.cookies.refreshToken;
-
-    console.log('refresh hit', refreshToken);
 
     if (!refreshToken) {
         return res.status(401).json({ message: "Refresh token missing" });
@@ -125,7 +134,10 @@ app.post('/api/auth/refresh', (req, res) => {
         }
 
         const { accessToken } = generateToken(user);
-        res.json({ accessToken: accessToken });
+        res.json({
+            accessToken: accessToken,
+            username: user.username
+        });
     });
 });
 
@@ -133,29 +145,33 @@ app.post('/api/auth/logout', jwtValidationMiddleware, (req, res) => {
     const refreshToken = req.cookies.refreshToken;
 
     refreshTokensDatabase = refreshTokensDatabase.filter(token => token !== refreshToken);
-    users = users.filter(user => user.username !== req.user.username);
+    const user = users.find((user) => user.username === req.user.username);
+
+    user.status = "INACTIVE";
 
     io.emit('user_disconnected', {
-        username: req.user.username
+        username: user.username,
+        status: user.status
     });
 
-    res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'none' });
     res.json({ message: "Logged out successfully" });
 });
 
 app.get('/api/users', jwtValidationMiddleware, async (req, res) => {
     await sleep(1000);
 
-    const activeUsers = users.filter((user) => user.socketId !== null).map((user) => {
+    const allUsers = users.filter((user) => user.username !== req.user.username).map((user) => {
         return {
-            username: user.username
+            username: user.username,
+            status: user.status
         };
     }).sort((a, b) => {
         return a.username.localeCompare(b.username);
     });
 
     res.json({
-        users: activeUsers
+        users: allUsers
     });
 });
 
@@ -183,8 +199,16 @@ io.on('connection', (socket) => {
         return;
     }
 
+    if (user.status === "ACTIVE") {
+        console.log(`Error: User already active: ${socket.user.username}`);
+        return;
+    }
+
+    user.status = "ACTIVE";
+
     io.emit('user_connected', {
-        username: user.username
+        username: user.username,
+        status: user.status
     });
 
     user.socketId = socket.id;
@@ -211,8 +235,11 @@ io.on('connection', (socket) => {
         console.log(`User disconnected: ${socket.id}`);
         const user = users.find((user) => user.socketId === socket.id);
         if (user) {
+            user.status = "INACTIVE";
+
             io.emit('user_disconnected', {
-                username: user.username
+                username: user.username,
+                status: user.status
             });
         }
     });

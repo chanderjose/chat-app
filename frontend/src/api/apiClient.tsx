@@ -1,22 +1,23 @@
+import { getErrorMessage } from "@/lib/errors";
 import { tokenStore } from "./tokenStore";
 
-const BASE_API_URL = import.meta.env.VITE_API_BASE_URL;
+const BASE_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 let isRefreshing = false;
-let refreshSubscribers = [];
+let refreshSubscribers: Array<(newToken: string) => void> = [];
 
 // Helper to queue requests while the token is being refreshed
-function subscribeTokenRefresh(cb) {
+function subscribeTokenRefresh(cb: (newToken: string) => void) {
     refreshSubscribers.push(cb);
 }
 
 // Helper to execute all queued requests once the token is renewed
 function onRefreshed(newToken: string) {
-    refreshSubscribers.map((cb) => cb(newToken));
+    refreshSubscribers.forEach((cb) => cb(newToken));
     refreshSubscribers = [];
 }
 
-export async function apiClient(endpoint, options = {}) {
+export async function apiClient(endpoint: string, options: RequestInit = { headers: {}, credentials: 'include' }) {
     const token = tokenStore.getToken();
 
     const headers = {
@@ -26,10 +27,10 @@ export async function apiClient(endpoint, options = {}) {
         ...options.headers,
     };
 
-    const config = {
+    const config: RequestInit = {
         ...options,
         headers,
-        credentials: options.credentials || 'include',
+        credentials: options.credentials ?? 'include',
     };
 
     const response = await fetch(`${BASE_API_URL}/${endpoint}`, config);
@@ -38,7 +39,7 @@ export async function apiClient(endpoint, options = {}) {
         // Intercept 401 Unauthorized globally
         if (response.status === 401) {
             // If it's already the refresh endpoint failing, stop to prevent infinite loops
-            if (endpoint === '/auth/refresh') {
+            if (endpoint === 'api/auth/refresh') {
                 tokenStore.clearToken();
                 window.dispatchEvent(new Event('auth:unauthorized'));
                 throw new Error('Session expired');
@@ -48,8 +49,10 @@ export async function apiClient(endpoint, options = {}) {
             const retryOriginalRequest = new Promise((resolve) => {
                 subscribeTokenRefresh((newToken) => {
                     // Replace the old token with the new one and re-fetch
-                    config.headers['Authorization'] = `Bearer ${newToken}`;
-                    resolve(fetch(`${BASE_API_URL}${endpoint}`, config).then(res => res.json()));
+                    const headers = new Headers(config.headers);
+                    headers.set('Authorization', `Bearer ${newToken}`);
+                    config.headers = headers;
+                    resolve(fetch(`${BASE_API_URL}/${endpoint}`, config).then(res => res.json()));
                 });
             });
 
@@ -58,7 +61,7 @@ export async function apiClient(endpoint, options = {}) {
 
                 try {
                     // Hit the silent refresh endpoint
-                    const refreshResponse = await fetch(`${BASE_API_URL}/auth/refresh`, {
+                    const refreshResponse = await fetch(`${BASE_API_URL}/api/auth/refresh`, {
                         method: 'POST',
                         credentials: 'include', // Ensures the refresh cookie is sent
                         headers: { 'Content-Type': 'application/json' },
@@ -74,11 +77,12 @@ export async function apiClient(endpoint, options = {}) {
 
                     isRefreshing = false;
                     onRefreshed(data.accessToken); // Wake up queued requests
-                } catch (err) {
+                } catch (err: unknown) {
                     isRefreshing = false;
                     tokenStore.clearToken();
                     window.dispatchEvent(new Event('auth:unauthorized')); // Kick user out
-                    throw err;
+
+                    throw getErrorMessage(err);
                 }
             }
 

@@ -5,14 +5,14 @@ import { useNavigate } from "react-router-dom";
 
 export default function SignInPage() {
     const { signIn, isLoading, error } = useSignIn();
-    const [errors, setErrors] = useState(null);
+    const [errors, setErrors] = useState<Record<string, string> | null>(null);
 
     const navigate = useNavigate();
 
-    const handleSubmit = async (e: any) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        const formData = new FormData(e.target);
+        const formData = new FormData(e.currentTarget);
         const username: string = formData.get('username') as string;
 
         if (!username) {
@@ -35,7 +35,7 @@ export default function SignInPage() {
         try {
             await signIn(username);
             navigate("/chats");
-        } catch (error: any) {
+        } catch {
             // ignore
         }
     };

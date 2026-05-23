@@ -6,7 +6,7 @@ export const apiService = {
             method: "POST",
             headers: [],
             body: JSON.stringify({ username }),
-            credentials: "omit",
+            credentials: "include",
         });
     },
 

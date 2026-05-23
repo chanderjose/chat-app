@@ -1,13 +1,23 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { tokenStore } from '@/api/tokenStore';
 import { apiService } from '@/services/apiService';
+import { apiClient } from '@/api/apiClient';
+import type { User } from '@/types/chat';
 
-const AuthContext = createContext(null);
+type AuthContextType = {
+    user: User | null;
+    isAuthenticated: boolean;
+    isInitializing: boolean;
+    loginStateUpdate: (userData: User, accessToken: string) => void;
+    logout: () => void;
+};
 
-export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isInitializing, setIsInitializing] = useState(true);
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+    const [user, setUser] = useState<User | null>(null);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+    const [isInitializing, setIsInitializing] = useState<boolean>(true);
 
     const logout = useCallback(async () => {
         try {
@@ -25,21 +35,21 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const bootSession = async () => {
             try {
-                const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-                const res = await fetch(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
-
-                if (res.ok) {
-                    const data = await res.json();
+                const data = await apiClient('api/auth/refresh', { method: 'POST', credentials: 'include' });
+                if (data && data.accessToken) {
                     tokenStore.setToken(data.accessToken);
-                    setUser(data.user); // If your refresh endpoint also returns user info
+                    // Ensure the User shape is satisfied (status is required on User)
+                    setUser({ username: data.username, status: data.status ?? 'ACTIVE' } as User);
                     setIsAuthenticated(true);
                 }
-            } catch (err) {
+            } catch {
                 console.log('No active session found.');
             } finally {
                 setIsInitializing(false);
             }
         };
+
+        console.log('performing boot session check...');
 
         bootSession();
     }, []);
@@ -49,7 +59,7 @@ export function AuthProvider({ children }) {
     //     return () => window.removeEventListener('auth:unauthorized', logout);
     // }, [/*logout*/]);
 
-    const loginStateUpdate = (userData, accessToken) => {
+    const loginStateUpdate = (userData: User, accessToken: string) => {
         tokenStore.setToken(accessToken);
         setUser(userData);
         setIsAuthenticated(true);
@@ -62,6 +72,13 @@ export function AuthProvider({ children }) {
     );
 }
 
-export function useAuth() {
-    return useContext(AuthContext);
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth(): AuthContextType {
+    const context = useContext(AuthContext);
+
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+
+    return context;
 }

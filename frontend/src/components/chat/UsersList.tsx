@@ -13,7 +13,7 @@ interface UsersListProps {
 }
 
 export function UsersList({ users, currentUser, selectedUser, unreadCounts, onSelectUser, onLogout, isLoading }: UsersListProps) {
-    const initial = currentUser.charAt(0).toUpperCase();
+    const initial = currentUser?.charAt(0)?.toUpperCase() ?? '?';
 
     return (
         <div className="flex flex-col h-full">

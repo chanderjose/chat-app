@@ -4,8 +4,9 @@ import { apiService } from '@/services/apiService';
 import { useAuth } from '@/context/AuthContext';
 import { tokenStore } from '@/api/tokenStore';
 import type { User, Message } from '@/types/chat';
+import { getErrorMessage } from '@/lib/errors';
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL;
 
 export function useChat() {
     const [users, setUsers] = useState<User[]>([]);
@@ -16,6 +17,7 @@ export function useChat() {
     const [error, setError] = useState<string | null>(null);
     const { user: currentUser } = useAuth();
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
+    const usersRef = useRef<User[]>([]);
     const selectedUserRef = useRef<User | null>(null);
 
     useEffect(() => {
@@ -24,38 +26,27 @@ export function useChat() {
         });
 
         socket.on('user_connected', (user: User) => {
-            const loadUsers = async () => {
-                setIsLoadingUsers(true);
-                setError(null);
-                try {
-                    const data = await apiService.listUsers();
-                    const filtered = data.users.filter(u => u.username !== currentUser?.username);
-                    setUsers(filtered);
-                } catch (err) {
-                    setError(err.message);
-                } finally {
-                    setIsLoadingUsers(false);
+            setUsers(prev => {
+                const existing = prev.find(u => u.username === user.username);
+                let next: User[];
+                if (!existing) {
+                    next = [...prev, user];
+                } else {
+                    next = prev.map(u => u.username === user.username ? user : u);
                 }
-            };
-
-            loadUsers();
+                usersRef.current = next;
+                return next;
+            });
         });
 
         socket.on('user_disconnected', (user: User) => {
-            const loadUsers = async () => {
-                setIsLoadingUsers(true);
-                setError(null);
-                try {
-                    const data = await apiService.listUsers();
-                    const filtered = data.users.filter(u => u.username !== currentUser?.username);
-                    setUsers(filtered);
-                } catch (err) {
-                    setError(err.message);
-                } finally {
-                    setIsLoadingUsers(false);
-                }
-            };
-            loadUsers();
+            setUsers(prev => {
+                const existing = prev.find(u => u.username === user.username);
+                if (!existing) return prev;
+                const next = prev.map(u => u.username === user.username ? user : u);
+                usersRef.current = next;
+                return next;
+            });
         });
 
         socket.on('message', (msg: Message) => {
@@ -75,27 +66,25 @@ export function useChat() {
 
         socketRef.current = socket;
 
-        return () => {
-            socket.disconnect();
-        };
-    }, []);
-
-    useEffect(() => {
         const loadUsers = async () => {
             setIsLoadingUsers(true);
             setError(null);
             try {
                 const data = await apiService.listUsers();
-                const filtered = data.users.filter(u => u.username !== currentUser?.username);
-                setUsers(filtered);
-            } catch (err) {
-                setError(err.message);
+                setUsers(data.users);
+                usersRef.current = data.users;
+            } catch (err: unknown) {
+                setError(getErrorMessage(err));
             } finally {
                 setIsLoadingUsers(false);
             }
         };
 
         loadUsers();
+
+        return () => {
+            socket.disconnect();
+        };
     }, []);
 
     const selectUser = (user: User) => {

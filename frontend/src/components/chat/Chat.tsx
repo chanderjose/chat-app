@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Send } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ChatProps {
     messages: MessageType[];
@@ -41,7 +42,10 @@ export function Chat({ messages, selectedUser, currentUser, isLoadingMessages, i
     return (
         <div className="flex flex-col h-full">
             <div className="p-4 flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted-foreground/20 text-foreground text-xs font-semibold">
+                <div className={cn(
+                    "flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold",
+                    selectedUser.status === 'ACTIVE' ? 'bg-green-500' : 'bg-red-500')
+                }>
                     {selectedUser.username.charAt(0).toUpperCase()}
                 </div>
                 <h2 className="text-lg font-heading font-semibold">{selectedUser.username}</h2>

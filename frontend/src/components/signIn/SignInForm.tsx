@@ -19,7 +19,7 @@ import {
     AlertTitle,
 } from "@/components/ui/alert"
 
-export function SignInForm({ error, errors, isSubmitting, onSubmit }: { error?: string, errors?: Record<string, string>, isSubmitting: boolean, onSubmit: (e: any) => void }) {
+export function SignInForm({ error, errors, isSubmitting, onSubmit }: { error?: string | null, errors?: Record<string, string> | null, isSubmitting: boolean, onSubmit: (e: any) => void }) {
     return (
         <form onSubmit={onSubmit} className="bg-muted w-full h-screen flex items-center justify-center">
             <Card className='w-md'>
@@ -42,6 +42,7 @@ export function SignInForm({ error, errors, isSubmitting, onSubmit }: { error?: 
                                 minLength={3}
                                 disabled={isSubmitting}
                                 required
+                                autoFocus
                             />
                             <FieldDescription>Enter at least 3 characters.</FieldDescription>
                             {errors?.username ? <FieldError>{errors.username}</FieldError> : null}

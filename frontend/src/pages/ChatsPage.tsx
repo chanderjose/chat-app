@@ -36,7 +36,7 @@ export default function ChatsPage() {
             <div className="w-72 shrink-0 border-r border-border">
                 <UsersList
                     users={users}
-                    currentUser={currentUser.username}
+                    currentUser={currentUser?.username ?? '?'}
                     selectedUser={selectedUser?.username ?? null}
                     unreadCounts={unreadCounts}
                     onSelectUser={selectUser}

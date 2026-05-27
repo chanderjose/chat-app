@@ -1,6 +1,7 @@
 import type { User as UserType } from '@/types/chat';
 import { User } from '@/components/chat/User';
 import { Separator } from '@/components/ui/separator';
+import { UsersListSkeleton } from '@/components/chat/UsersListSkeleton';
 
 interface UsersListProps {
     users: UserType[];
@@ -36,9 +37,7 @@ export function UsersList({ users, currentUser, selectedUser, unreadCounts, onSe
             <Separator />
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
                 {isLoading ? (
-                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                        Loading users...
-                    </div>
+                    <UsersListSkeleton count={10} />
                 ) : users.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                         No users available

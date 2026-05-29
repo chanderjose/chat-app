@@ -42,11 +42,20 @@ export function Chat({ messages, selectedUser, currentUser, isLoadingMessages, i
     return (
         <div className="flex flex-col h-full">
             <div className="p-4 flex items-center gap-3">
-                <div className={cn(
-                    "flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold",
-                    selectedUser.status === 'ACTIVE' ? 'bg-green-500' : 'bg-red-500')
-                }>
-                    {selectedUser.username.charAt(0).toUpperCase()}
+                <div className="relative inline-block">
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold shrink-0 bg-primary-foreground text-primary">
+                        {selectedUser.username.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="absolute bottom-0 right-0 flex h-3 w-3">
+                        <span className={cn(
+                            "absolute inline-flex h-full w-full rounded-full opacity-75 ",
+                            selectedUser.status === 'ACTIVE' ? "animate-ping bg-green-400" : "bg-gray-400"
+                            )}></span>
+                        <span className={cn(
+                            "relative inline-flex h-3 w-3 rounded-full ring-2 ring-white ",
+                            selectedUser.status === 'ACTIVE' ? "bg-green-500" : "bg-gray-400"
+                            )}></span>
+                    </span>
                 </div>
                 <h2 className="text-lg font-heading font-semibold">{selectedUser.username}</h2>
             </div>

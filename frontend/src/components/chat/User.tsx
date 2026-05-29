@@ -23,13 +23,20 @@ export function User({ user, isSelected, unreadCount, onSelect }: UserProps) {
             )}
         >
             <div className='flex items-center gap-3 '>
-                <div className={cn(
-                    "flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold shrink-0",
-                    user.status === 'ACTIVE'
-                        ? "bg-green-500"
-                        : "bg-red-500"
-                )}>
-                    {initial}
+                <div className="relative inline-block">
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold shrink-0 bg-primary-foreground text-primary">
+                        {initial}
+                    </span>
+                    <span className="absolute bottom-0 right-0 flex h-3 w-3">
+                        <span className={cn(
+                            "absolute inline-flex h-full w-full rounded-full opacity-75 ",
+                            user.status === 'ACTIVE' ? "animate-ping bg-green-400" : "bg-gray-400"
+                            )}></span>
+                        <span className={cn(
+                            "relative inline-flex h-3 w-3 rounded-full ring-2 ring-white ",
+                            user.status === 'ACTIVE' ? "bg-green-500" : "bg-gray-400"
+                            )}></span>
+                    </span>
                 </div>
                 <span className="font-medium truncate flex-1">{user.username}</span>
                 {unreadCount > 0 && (
